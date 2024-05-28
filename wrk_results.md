@@ -38,6 +38,23 @@ Requests/sec:  35551.57
 Transfer/sec:      4.41MB
 ```
 
+```bash
+➜  go-fastcounters git:(main) ✗ wrk http://127.0.0.1:8080 --latency -d10s -t8 -c 16
+Running 10s test @ http://127.0.0.1:8080
+  8 threads and 16 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   139.71us   67.08us   4.16ms   92.60%
+    Req/Sec     9.81k     3.42k   16.25k    68.94%
+  Latency Distribution
+     50%  129.00us
+     75%  144.00us
+     90%  177.00us
+     99%  302.00us
+  471798 requests in 10.10s, 58.49MB read
+Requests/sec:  46698.54
+Transfer/sec:      5.79MB
+```
+
 Skip http:
 
 ```bash

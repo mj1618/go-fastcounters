@@ -19,11 +19,14 @@ var countMoveCommands = 0
 var countIncrementCommands = 0
 
 func UpdateState(entry WALEntry) {
-	if entry.CommandType == "MoveCommand" {
-		countMoveCommands += 1
-	} else if entry.CommandType == "IncrementCommand" {
+	switch entry.CommandType {
+	case "MoveCommand":
+		countMoveCommands++
+		GetCommand[MoveCommand](entry)
+	case "IncrementCommand":
 		countIncrementCommands++
-	} else {
+		GetCommand[IncrementCommand](entry)
+	default:
 		fmt.Println("Unknown command: ", entry)
 	}
 }

@@ -8,16 +8,10 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-func getCommand[K any](data []byte) K {
-	var x K
-	msgpack.Unmarshal(data, &x)
-	return x
-}
-
 func TestGenerics(t *testing.T) {
 	mv := MoveCommand{FromAddress: 1, ToAddress: 2, Amount: 10}
 	data, _ := msgpack.Marshal(mv)
-	mv2 := getCommand[MoveCommand](data)
+	mv2 := GetCommand[MoveCommand](WALEntry{Command: data, CommandType: "MoveCommand"})
 	fmt.Println(mv2)
 	fmt.Println(reflect.TypeOf(mv2))
 }

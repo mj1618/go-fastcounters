@@ -15,10 +15,16 @@ import (
 )
 
 type WALEntry struct {
-	Command        any
+	Command        []byte
 	CommandType    string
 	SequenceNumber int64
 	TraceId        int64
+}
+
+func GetCommand[K any](e WALEntry) K {
+	var value K
+	msgpack.Unmarshal(e.Command, &value)
+	return value
 }
 
 var sequenceNumber atomic.Int64 = atomic.Int64{}
@@ -55,7 +61,11 @@ func InitWriteAheadLog(fn UpdateStateFunction) {
 }
 
 func ProposeCommandToWAL(commandType string, command any) chan int {
-	entry := WALEntry{Command: command, TraceId: traceId.Add(1), CommandType: commandType}
+	data, err := msgpack.Marshal(command)
+	if err != nil {
+		panic(err)
+	}
+	entry := WALEntry{Command: data, TraceId: traceId.Add(1), CommandType: commandType}
 	proposeWALEntryChannel <- entry
 	responseChannel := make(chan int)
 	responseWriterMap.Store(entry.TraceId, responseChannel)
