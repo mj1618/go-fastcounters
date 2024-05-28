@@ -1,18 +1,16 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/gob"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/julienschmidt/httprouter"
-	"google.golang.org/protobuf/proto"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var CommandTypes = map[string]int32{
@@ -21,13 +19,21 @@ var CommandTypes = map[string]int32{
 	"DECREMENT": 3,
 }
 
+type Command struct {
+	CommandType int32
+	FromAddress int32
+	ToAddress   int32
+	Amount      int32
+	RequestId   int64
+}
+
 var commandLogFile *os.File
 var commandWriterChannel chan Command
 var requestIdSeq atomic.Int64
 var responseWriterMap = sync.Map{}
 
 func main() {
-	count_file()
+	// count_file()
 	commandLogFile = openLogFile()
 	defer closeLogFile(commandLogFile)
 	commandWriterChannel = make(chan Command, 256)
@@ -49,19 +55,18 @@ func count_file() {
 	var command Command
 	i := 0
 
-	buf := make([]byte, command)
+	// _, file = getDecoder("output.txt")
+	defer file.Close()
 
 	for {
-		_, err = file.Read(buf)
+		// err = decoder.Decode(&command)
+		buf := make([]byte, 81)
+		_, err := file.Read(buf)
+		msgpack.Unmarshal(buf, &command)
 		if err != nil {
-			fmt.Println(err)
-			break
+			panic(err)
 		}
-		err = proto.Unmarshal(buf, &command)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(command.RequestId)
+		fmt.Println(command)
 		i++
 	}
 	fmt.Println("Total commands: ", i)
@@ -84,12 +89,27 @@ func RootHandler(rw http.ResponseWriter, r *http.Request, p httprouter.Params) {
 }
 
 func CommandLogWriter() {
+	_, file := getEncoder("output.txt")
+	b := bufio.NewWriter(file)
 	for {
 		commands := ReadBatchOfCommands()
+		// fmt.Println(len(commands))
 		if len(commands) > 0 {
-			// fmt.Println("batched commands: ", len(commands))
-			// writeChunk(EncodeCommands(commands))
-			writeFile(commandLogFile, commands)
+			for _, command := range commands {
+				data, err := msgpack.Marshal(&command)
+
+				if err != nil {
+					panic(err)
+				}
+				b.Write(data)
+				_ = data
+			}
+
+			// start := time.Now()
+			// file.Sync()
+			b.Flush()
+			// fmt.Println("Time taken to write to file: ", time.Since(start))
+
 			for _, command := range commands {
 				responseChannel, ok := responseWriterMap.Load(command.RequestId)
 				if ok {
@@ -100,38 +120,18 @@ func CommandLogWriter() {
 	}
 }
 
-func EncodeCommands(commands []Command) []byte {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-
-	if err := enc.Encode(commands); err != nil {
-		panic(err)
-	}
-	return buf.Bytes()
-}
-
-func DecodeCommand(buf bytes.Buffer) *Command {
-	var command Command
-	enc := gob.NewDecoder(&buf)
-	err := enc.Decode(&command)
-	if err != nil {
-		panic(err)
-	}
-	return &command
-}
-
 func ReadBatchOfCommands() []Command {
-	commands := make([]Command, 0, 5096)
-	timer := time.NewTimer(time.Microsecond * 200)
+	commands := make([]Command, 0, 256)
+	// timer := time.NewTimer(time.Microsecond * 1000)
 	for {
 		select {
 		case command := <-commandWriterChannel:
 			commands = append(commands, command)
-			if len(commands) == 5096 {
+			if len(commands) == 256 {
 				return commands
 			}
-		case <-timer.C:
-			return commands
+			// case <-timer.C:
+			// 	return commands
 		}
 	}
 }
@@ -152,18 +152,36 @@ func closeLogFile(fo *os.File) {
 	}
 }
 
-func writeFile(file *os.File, commands []Command) {
-
-	for _, command := range commands {
-		var data []byte
-		var err error
-		if data, err = proto.Marshal(&command); err != nil {
-			log.Fatal(err)
-		}
-		_, err = file.Write(data)
-		if err != nil {
-			log.Fatal(err)
-		}
+func getEncoder(fileName string) (*gob.Encoder, *os.File) {
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		panic(err)
 	}
-	file.Sync()
+
+	return gob.NewEncoder(file), file
 }
+
+func getDecoder(fileName string) (*gob.Decoder, *os.File) {
+	file, err := os.OpenFile(fileName, os.O_RDONLY, 0666)
+	if err != nil {
+		panic(err)
+	}
+
+	return gob.NewDecoder(file), file
+}
+
+// func writeFile(file *os.File, commands []Command) {
+
+// 	for _, command := range commands {
+// 		var data []byte
+// 		var err error
+// 		if data, err = proto.Marshal(&command); err != nil {
+// 			log.Fatal(err)
+// 		}
+// 		_, err = file.Write(data)
+// 		if err != nil {
+// 			log.Fatal(err)
+// 		}
+// 	}
+// 	file.Sync()
+// }
