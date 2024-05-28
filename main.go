@@ -18,17 +18,11 @@ func main() {
 }
 
 func RootHandler(rw http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	responseChannel := ProposeCommandToWAL(Command{CommandType: CommandTypes["MOVE"], FromAddress: 1, ToAddress: 2, Amount: 10})
+	responseChannel := ProposeCommandToWAL("MoveCommand", MoveCommand{FromAddress: 1, ToAddress: 2, Amount: 10})
 	result := <-responseChannel
 	fmt.Fprintln(rw, "Result: ", result)
 }
 
-var currentState = 0
-
-func UpdateState(command Command) {
-	currentState++
-}
-
 func StateHandler(rw http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	fmt.Fprintln(rw, "State: ", currentState)
+	fmt.Fprintln(rw, "State: ", GetCommandCounts())
 }
