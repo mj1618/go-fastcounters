@@ -21,21 +21,16 @@ var countMoveCommands = 0
 var countIncrementCommands = 0
 
 func UpdateState(entry WALEntry) {
-	fmt.Println("Updating state with entry: ", entry)
 	if entry.CommandType == "MoveCommand" {
 		countMoveCommands += 1
-		fmt.Println("MoveCommand count", countMoveCommands)
 		var result MoveCommand
 		mapstructure.Decode(entry.Command, &result)
-		// fmt.Println("MoveCommand: ", result)
 	} else if entry.CommandType == "IncrementCommand" {
 		countIncrementCommands++
 		var result IncrementCommand
 		mapstructure.Decode(entry.Command, &result)
-		// fmt.Println("IncrementCommand: ", result)
 	} else {
-		fmt.Println("Unknown command type", entry)
-
+		fmt.Println("Unknown command: ", entry)
 	}
 }
 

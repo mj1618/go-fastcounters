@@ -27,6 +27,7 @@ var readWALDecoder *msgpack.Decoder
 var writeWALFile *os.File
 var responseWriterMap = sync.Map{}
 var updateStateFn UpdateStateFunction = nil
+var triggerReadWALFile = make(chan bool)
 
 type UpdateStateFunction func(WALEntry)
 
@@ -47,6 +48,7 @@ func InitWriteAheadLog(fn UpdateStateFunction) {
 	}
 
 	PreProcessCommands()
+	go CommandLogReader()
 	go CommandLogWriter()
 }
 
@@ -74,6 +76,21 @@ func ReadProposedWALEntries() []WALEntry {
 	}
 }
 
+func CommandLogReader() {
+	for {
+		<-triggerReadWALFile
+		entries := ReadCommandsFromWAL()
+		for _, entry := range entries {
+			updateStateFn(entry)
+			responseChannel, ok := responseWriterMap.Load(entry.TraceId)
+			if ok {
+				responseChannel.(chan int) <- 200
+				responseWriterMap.Delete(entry.TraceId)
+			}
+		}
+	}
+}
+
 func CommandLogWriter() {
 	b := bufio.NewWriter(writeWALFile)
 	for {
@@ -91,15 +108,7 @@ func CommandLogWriter() {
 			}
 
 			b.Flush()
-
-			for _, entry := range entries {
-				updateStateFn(entry)
-				responseChannel, ok := responseWriterMap.Load(entry.TraceId)
-				if ok {
-					responseChannel.(chan int) <- 200
-					responseWriterMap.Delete(entry.TraceId)
-				}
-			}
+			triggerReadWALFile <- true
 		}
 	}
 }
@@ -131,9 +140,6 @@ func ReadCommandsFromWAL() (commands []WALEntry) {
 	for {
 		command := WALEntry{}
 		err := readWALDecoder.Decode(&command)
-
-		// buf := make([]byte, commandByteSize)
-		// _, err := readWALFile.Read(buf)
 		if err == io.EOF {
 			break
 		} else if err != nil {
@@ -143,29 +149,6 @@ func ReadCommandsFromWAL() (commands []WALEntry) {
 		if len(commands) == 256 {
 			break
 		}
-		// var command Command
-		// msgpack.Unmarshal(buf, &command)
-
 	}
 	return commands
 }
-
-// func ReadCommandsFromWAL() (commands []Command) {
-// 	commands = make([]Command, 0, 256)
-// 	for {
-// 		buf := make([]byte, commandByteSize)
-// 		_, err := readWALFile.Read(buf)
-// 		if err == io.EOF {
-// 			break
-// 		} else if err != nil {
-// 			panic(err)
-// 		}
-// 		var command Command
-// 		msgpack.Unmarshal(buf, &command)
-// 		commands = append(commands, command)
-// 		if len(commands) == 256 {
-// 			break
-// 		}
-// 	}
-// 	return commands
-// }
