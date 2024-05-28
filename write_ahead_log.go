@@ -15,7 +15,7 @@ import (
 )
 
 type WALEntry struct {
-	Command        []byte
+	CommandData    []byte
 	CommandType    string
 	SequenceNumber int64
 	TraceId        int64
@@ -23,7 +23,7 @@ type WALEntry struct {
 
 func GetCommand[K any](e WALEntry) K {
 	var value K
-	msgpack.Unmarshal(e.Command, &value)
+	msgpack.Unmarshal(e.CommandData, &value)
 	return value
 }
 
@@ -65,7 +65,7 @@ func ProposeCommandToWAL(commandType string, command any) chan int {
 	if err != nil {
 		panic(err)
 	}
-	entry := WALEntry{Command: data, TraceId: traceId.Add(1), CommandType: commandType}
+	entry := WALEntry{CommandData: data, TraceId: traceId.Add(1), CommandType: commandType}
 	proposeWALEntryChannel <- entry
 	responseChannel := make(chan int)
 	responseWriterMap.Store(entry.TraceId, responseChannel)
