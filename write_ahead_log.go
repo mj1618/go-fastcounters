@@ -7,8 +7,10 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"text/tabwriter"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -27,12 +29,12 @@ var readWALDecoder *msgpack.Decoder
 var writeWALFile *os.File
 var responseWriterMap = sync.Map{}
 var updateStateFn UpdateStateFunction = nil
-var triggerReadWALFile = make(chan bool)
+var triggerReadWALFileChannel = make(chan int)
 
 type UpdateStateFunction func(WALEntry)
 
 func InitWriteAheadLog(fn UpdateStateFunction) {
-	sequenceNumber.Store(-1)
+	sequenceNumber.Store(0)
 	updateStateFn = fn
 	var err error
 
@@ -62,7 +64,7 @@ func ProposeCommandToWAL(commandType string, command any) chan int {
 
 func ReadProposedWALEntries() []WALEntry {
 	entries := make([]WALEntry, 0, 256)
-	timer := time.NewTimer(time.Microsecond * 1000)
+	timer := time.NewTimer(time.Microsecond * 100)
 	for {
 		select {
 		case entry := <-proposeWALEntryChannel:
@@ -78,8 +80,8 @@ func ReadProposedWALEntries() []WALEntry {
 
 func CommandLogReader() {
 	for {
-		<-triggerReadWALFile
-		entries := ReadCommandsFromWAL()
+		n := <-triggerReadWALFileChannel
+		entries := ReadCommandsFromWAL(n)
 		for _, entry := range entries {
 			updateStateFn(entry)
 			responseChannel, ok := responseWriterMap.Load(entry.TraceId)
@@ -108,15 +110,16 @@ func CommandLogWriter() {
 			}
 
 			b.Flush()
-			triggerReadWALFile <- true
+			triggerReadWALFileChannel <- len(entries)
 		}
 	}
 }
 
 func PreProcessCommands() {
-	i := 0
+	var i int64 = 0
+	start := time.Now()
 	for {
-		commands := ReadCommandsFromWAL()
+		commands := ReadCommandsFromWAL(5096)
 		if len(commands) == 0 {
 			break
 		}
@@ -131,12 +134,28 @@ func PreProcessCommands() {
 		}
 	}
 
-	fmt.Println("Total commands deserialised from file: ", i)
-	fmt.Println("Next sequence number: ", sequenceNumber.Load()+1)
+	if i == 0 {
+		fmt.Println("No commands found in WAL")
+		fmt.Println()
+		return
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', tabwriter.AlignRight)
+	fmt.Fprintf(w, "Read WAL in: \t%s\t seconds\n", humanize.Comma(int64(time.Since(start).Seconds())))
+	fmt.Fprintf(w, "Read WAL at: \t%s\t msgs/sec\n", humanize.CommafWithDigits(float64(i)/time.Since(start).Seconds(), 0))
+	fmt.Fprintf(w, "Commands read from file: \t%s\t\n", humanize.Comma(i))
+	fmt.Fprintf(w, "Next sequence number: \t%s\t\n", humanize.Comma(sequenceNumber.Load()+1))
+	w.Flush()
+	fmt.Println()
+	// fmt.Printf("Read WAL in %s\n", humanize.RelTime(start, time.Now(), "", ""))
+	// fmt.Printf("Read WAL at %s msgs/sec\n", humanize.CommafWithDigits(float64(i)/time.Since(start).Seconds(), 0))
+	// fmt.Printf("Total commands deserialised from file: %s\n", humanize.Comma(i))
+	// fmt.Printf("Next sequence number: %s\n", humanize.Comma(sequenceNumber.Load()+1))
+	// fmt.Println()
 }
 
-func ReadCommandsFromWAL() (commands []WALEntry) {
-	commands = make([]WALEntry, 0, 256)
+func ReadCommandsFromWAL(n int) (commands []WALEntry) {
+	commands = make([]WALEntry, 0, n)
 	for {
 		command := WALEntry{}
 		err := readWALDecoder.Decode(&command)
@@ -146,7 +165,7 @@ func ReadCommandsFromWAL() (commands []WALEntry) {
 			panic(err)
 		}
 		commands = append(commands, command)
-		if len(commands) == 256 {
+		if len(commands) == n {
 			break
 		}
 	}

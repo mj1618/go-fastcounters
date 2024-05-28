@@ -9,7 +9,6 @@ import (
 
 func main() {
 	InitWriteAheadLog(UpdateState)
-
 	r := httprouter.New()
 	r.GET("/", RootHandler)
 	r.GET("/state", StateHandler)

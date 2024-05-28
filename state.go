@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/mitchellh/mapstructure"
 )
 
 type MoveCommand struct {
@@ -23,12 +21,8 @@ var countIncrementCommands = 0
 func UpdateState(entry WALEntry) {
 	if entry.CommandType == "MoveCommand" {
 		countMoveCommands += 1
-		var result MoveCommand
-		mapstructure.Decode(entry.Command, &result)
 	} else if entry.CommandType == "IncrementCommand" {
 		countIncrementCommands++
-		var result IncrementCommand
-		mapstructure.Decode(entry.Command, &result)
 	} else {
 		fmt.Println("Unknown command: ", entry)
 	}
