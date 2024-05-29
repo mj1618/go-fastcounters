@@ -1,0 +1,3 @@
+#!/bin/bash
+
+curl -H "Content-Type: application/json" -X POST -d '{"FromAddress": 1234, "ToAddress": 5678, "Amount": 7}' http://localhost:8080/move
