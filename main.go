@@ -12,7 +12,6 @@ func main() {
 	app := fiber.New()
 	app.Get("/", RootHandler)
 	app.Get("/state", StateHandler)
-	app.Get("/hello", StateHandler)
 	fmt.Println("Starting server on :8080")
 	app.Listen(":8080")
 }

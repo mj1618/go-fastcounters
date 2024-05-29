@@ -22,10 +22,10 @@ func UpdateState(entry WALEntry) {
 	switch entry.CommandType {
 	case "MoveCommand":
 		countMoveCommands++
-		// GetCommand[MoveCommand](entry)
+		GetCommand[MoveCommand](entry)
 	case "IncrementCommand":
 		countIncrementCommands++
-		// GetCommand[IncrementCommand](entry)
+		GetCommand[IncrementCommand](entry)
 	default:
 		fmt.Println("Unknown command: ", entry)
 	}
