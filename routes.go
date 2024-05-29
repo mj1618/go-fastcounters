@@ -8,8 +8,6 @@ import (
 )
 
 func StartHttp() {
-	InitWriteAheadLog(UpdateState)
-
 	app := fiber.New()
 	app.Get("/", StateHandler)
 
@@ -23,6 +21,7 @@ func StartHttp() {
 }
 
 func StateHandler(c *fiber.Ctx) error {
+	fmt.Println("StateHandler", GetUint64(1234))
 	return c.SendString("Count: " + fmt.Sprint(countCommands) + "\n" + "State: " + fmt.Sprint(counters) + "\n")
 }
 

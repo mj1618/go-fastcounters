@@ -5,31 +5,32 @@ import (
 )
 
 type MoveCommand struct {
-	FromAddress int64
-	ToAddress   int64
-	Amount      int64
+	FromAddress uint64
+	ToAddress   uint64
+	Amount      uint64
 }
 
 type MoveAllCommand struct {
-	FromAddress int64
-	ToAddress   int64
+	FromAddress uint64
+	ToAddress   uint64
 }
 
 type IncrementCommand struct {
-	Address int64
-	Amount  int64
+	Address uint64
+	Amount  uint64
 }
 
 type DecrementCommand struct {
-	Address int64
-	Amount  int64
+	Address uint64
+	Amount  uint64
 }
 
-var counters = map[int64]int64{}
+var counters = map[uint64]uint64{}
 
 var countCommands = 0
 
 func UpdateState(entry WALEntry) {
+
 	switch entry.CommandType {
 	case "MoveCommand":
 		countCommands++
@@ -38,28 +39,35 @@ func UpdateState(entry WALEntry) {
 		counters[cmd.FromAddress] -= amount
 		counters[cmd.ToAddress] += amount
 
+		PutUint64(cmd.FromAddress, counters[cmd.FromAddress])
+		PutUint64(cmd.ToAddress, counters[cmd.ToAddress])
+
 	case "MoveAllCommand":
 		countCommands++
 		cmd := GetCommand[MoveAllCommand](entry)
 		counters[cmd.ToAddress] += cmd.FromAddress
 		counters[cmd.FromAddress] = 0
+		PutUint64(cmd.FromAddress, counters[cmd.FromAddress])
+		PutUint64(cmd.ToAddress, counters[cmd.ToAddress])
 
 	case "IncrementCommand":
 		countCommands++
 		cmd := GetCommand[IncrementCommand](entry)
 		counters[cmd.Address] += cmd.Amount
+		PutUint64(cmd.Address, counters[cmd.Address])
 
 	case "DecrementCommand":
 		countCommands++
 		cmd := GetCommand[DecrementCommand](entry)
 		if cmd.Amount <= counters[cmd.Address] {
 			counters[cmd.Address] -= cmd.Amount
-			return
+			PutUint64(cmd.Address, counters[cmd.Address])
 		}
 
 	default:
 		fmt.Println("Unknown command: ", entry)
 	}
+
 }
 
 func GetCommandCounts() map[string]int {
@@ -68,6 +76,6 @@ func GetCommandCounts() map[string]int {
 	}
 }
 
-func GetCounterState() map[int64]int64 {
+func GetCounterState() map[uint64]uint64 {
 	return counters
 }
