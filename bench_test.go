@@ -24,21 +24,34 @@ import (
 
 // }
 
+func runCommands(n int) {
+	var wg sync.WaitGroup
+	wg.Add(n)
+	// var x atomic.Int32 // x is a counter
+	for i := 0; i < n; i++ {
+		go (func() {
+			defer wg.Done()
+			responseChannel := ProposeCommandToWAL("MoveCommand", MoveCommand{FromAddress: 1, ToAddress: 2, Amount: 10})
+			<-responseChannel
+
+			// fmt.Println("Done", x.Add(1))
+		})()
+	}
+	// fmt.Println("Waiting for ", x, " commands to be processed")
+	wg.Wait()
+	// fmt.Println("Processed ", n, " commands")
+}
+
 func TestBench(t *testing.T) {
 	InitWriteAheadLog(UpdateState)
 
 	var start = time.Now()
-	var wg sync.WaitGroup
-	n := 10000000
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		responseChannel := ProposeCommandToWAL("MoveCommand", MoveCommand{FromAddress: 1, ToAddress: 2, Amount: 10})
-		go (func() {
-			defer wg.Done()
-			<-responseChannel
-		})()
+	n := 100_000_000
+	batchSize := 100_000
+	for i := 0; i < n; i += batchSize {
+		runCommands(batchSize)
+		// fmt.Println("Processed ", i+batchSize, " commands")
 	}
-	wg.Wait()
 	fmt.Println("Elapsed time: ", time.Since(start))
 	fmt.Println("Commands processed: ", n)
 	fmt.Println("Commands per second: ", float64(n)/time.Since(start).Seconds())

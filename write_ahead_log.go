@@ -35,7 +35,7 @@ var readWALDecoder *msgpack.Decoder
 var writeWALFile *os.File
 var responseWriterMap = sync.Map{}
 var updateStateFn UpdateStateFunction = nil
-var triggerReadWALFileChannel = make(chan int)
+var triggerReadWALFileChannel = make(chan int, 256)
 
 type UpdateStateFunction func(WALEntry)
 
@@ -66,16 +66,14 @@ func ProposeCommandToWAL(commandType string, command any) chan int {
 		panic(err)
 	}
 	entry := WALEntry{CommandData: data, TraceId: traceId.Add(1), CommandType: commandType}
-	proposeWALEntryChannel <- entry
-	responseChannel := make(chan int)
+	responseChannel := make(chan int, 1)
 	responseWriterMap.Store(entry.TraceId, responseChannel)
+	proposeWALEntryChannel <- entry
 	return responseChannel
 }
 
-var entries = make([]WALEntry, 0, 256)
-
 func ReadProposedWALEntries() []WALEntry {
-	entries = entries[:0]
+	var entries = make([]WALEntry, 0, 256)
 	timer := time.NewTimer(time.Microsecond * 100)
 	for {
 		select {
@@ -94,12 +92,17 @@ func CommandLogReader() {
 	for {
 		n := <-triggerReadWALFileChannel
 		entries := ReadCommandsFromWAL(n)
+		// fmt.Println("Read ", len(entries), " entries from WAL")
 		for _, entry := range entries {
 			updateStateFn(entry)
 			responseChannel, ok := responseWriterMap.Load(entry.TraceId)
 			if ok {
+				// fmt.Println("Found response channel for ", entry.TraceId)
 				responseChannel.(chan int) <- 200
+				// fmt.Println("Responded ", entry.TraceId)
 				responseWriterMap.Delete(entry.TraceId)
+			} else {
+				fmt.Println("No response channel found for ", entry)
 			}
 		}
 	}
@@ -122,6 +125,7 @@ func CommandLogWriter() {
 			}
 
 			b.Flush()
+			// fmt.Println("Wrote ", len(entries), " entries to WAL")
 			triggerReadWALFileChannel <- len(entries)
 		}
 	}
@@ -159,11 +163,6 @@ func PreProcessCommands() {
 	fmt.Fprintf(w, "Next sequence number: \t%s\t\n", humanize.Comma(sequenceNumber.Load()+1))
 	w.Flush()
 	fmt.Println()
-	// fmt.Printf("Read WAL in %s\n", humanize.RelTime(start, time.Now(), "", ""))
-	// fmt.Printf("Read WAL at %s msgs/sec\n", humanize.CommafWithDigits(float64(i)/time.Since(start).Seconds(), 0))
-	// fmt.Printf("Total commands deserialised from file: %s\n", humanize.Comma(i))
-	// fmt.Printf("Next sequence number: %s\n", humanize.Comma(sequenceNumber.Load()+1))
-	// fmt.Println()
 }
 
 func ReadCommandsFromWAL(n int) (commands []WALEntry) {
