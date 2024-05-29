@@ -39,29 +39,22 @@ func UpdateState(entry WALEntry) {
 		counters[cmd.FromAddress] -= amount
 		counters[cmd.ToAddress] += amount
 
-		PutUint64(cmd.FromAddress, counters[cmd.FromAddress])
-		PutUint64(cmd.ToAddress, counters[cmd.ToAddress])
-
 	case "MoveAllCommand":
 		countCommands++
 		cmd := GetCommand[MoveAllCommand](entry)
 		counters[cmd.ToAddress] += cmd.FromAddress
 		counters[cmd.FromAddress] = 0
-		PutUint64(cmd.FromAddress, counters[cmd.FromAddress])
-		PutUint64(cmd.ToAddress, counters[cmd.ToAddress])
 
 	case "IncrementCommand":
 		countCommands++
 		cmd := GetCommand[IncrementCommand](entry)
 		counters[cmd.Address] += cmd.Amount
-		PutUint64(cmd.Address, counters[cmd.Address])
 
 	case "DecrementCommand":
 		countCommands++
 		cmd := GetCommand[DecrementCommand](entry)
 		if cmd.Amount <= counters[cmd.Address] {
 			counters[cmd.Address] -= cmd.Amount
-			PutUint64(cmd.Address, counters[cmd.Address])
 		}
 
 	default:
