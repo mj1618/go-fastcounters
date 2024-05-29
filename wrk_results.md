@@ -3,56 +3,37 @@
 Wrk 16 connections:
 
 ```bash
-➜  go-fastcounters git:(main) ✗ wrk http://127.0.0.1:8080 --latency -d10s -t1  -c16
+➜  go-fastcounters git:(main) ✗ wrk http://127.0.0.1:8080 --latency -d10s -t4 -c64
 Running 10s test @ http://127.0.0.1:8080
-  1 threads and 16 connections
+  4 threads and 64 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   130.11us   70.56us   4.13ms   88.77%
-    Req/Sec    77.06k     5.59k   85.78k    58.42%
+    Latency   147.62us  110.31us   4.17ms   93.17%
+    Req/Sec    30.95k    22.60k   76.90k    53.31%
   Latency Distribution
-     50%  112.00us
-     75%  147.00us
-     90%  202.00us
-     99%  300.00us
-  773941 requests in 10.10s, 95.95MB read
-Requests/sec:  76624.75
-Transfer/sec:      9.50MB
-```
-
-Wrk 8 threads, 16 connections:
-
-```bash
-➜  go-fastcounters git:(main) ✗ wrk http://127.0.0.1:8080 --latency -d20s -t8 -c 16
-Running 20s test @ http://127.0.0.1:8080
-  8 threads and 16 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   138.11us   73.05us   5.64ms   95.06%
-    Req/Sec     8.61k     2.64k   15.75k    83.93%
-  Latency Distribution
-     50%  130.00us
-     75%  144.00us
-     90%  165.00us
-     99%  290.00us
-  714587 requests in 20.10s, 88.59MB read
-Requests/sec:  35551.57
-Transfer/sec:      4.41MB
+     50%  121.00us
+     75%  141.00us
+     90%  219.00us
+     99%  599.00us
+  745164 requests in 10.10s, 90.96MB read
+Requests/sec:  73777.36
+Transfer/sec:      9.01MB
 ```
 
 ```bash
-➜  go-fastcounters git:(main) ✗ wrk http://127.0.0.1:8080 --latency -d10s -t8 -c 16
+➜  go-fastcounters git:(main) ✗ wrk http://127.0.0.1:8080 --latency -d10s -t4 -c64
 Running 10s test @ http://127.0.0.1:8080
-  8 threads and 16 connections
+  4 threads and 64 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   139.71us   67.08us   4.16ms   92.60%
-    Req/Sec     9.81k     3.42k   16.25k    68.94%
+    Latency   175.38us  129.82us   7.82ms   91.73%
+    Req/Sec    31.21k    10.05k   71.49k    79.77%
   Latency Distribution
-     50%  129.00us
-     75%  144.00us
-     90%  177.00us
-     99%  302.00us
-  471798 requests in 10.10s, 58.49MB read
-Requests/sec:  46698.54
-Transfer/sec:      5.79MB
+     50%  134.00us
+     75%  213.00us
+     90%  289.00us
+     99%  609.00us
+  1089533 requests in 10.10s, 133.00MB read
+Requests/sec: 107870.18
+Transfer/sec:     13.17MB
 ```
 
 Skip http:

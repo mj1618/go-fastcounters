@@ -2,26 +2,26 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 
-	"github.com/julienschmidt/httprouter"
+	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
 	InitWriteAheadLog(UpdateState)
-	r := httprouter.New()
-	r.GET("/", RootHandler)
-	r.GET("/state", StateHandler)
+
+	app := fiber.New()
+	app.Get("/", RootHandler)
+	app.Get("/state", StateHandler)
 	fmt.Println("Starting server on :8080")
-	http.ListenAndServe(":8080", r)
+	app.Listen(":8080")
 }
 
-func RootHandler(rw http.ResponseWriter, r *http.Request, p httprouter.Params) {
+func RootHandler(c *fiber.Ctx) error {
 	responseChannel := ProposeCommandToWAL("MoveCommand", MoveCommand{FromAddress: 1, ToAddress: 2, Amount: 10})
 	result := <-responseChannel
-	fmt.Fprintln(rw, "Result: ", result)
+	return c.SendString("Result: " + fmt.Sprint(result))
 }
 
-func StateHandler(rw http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	fmt.Fprintln(rw, "State: ", GetCommandCounts())
+func StateHandler(c *fiber.Ctx) error {
+	return c.SendString("State: " + fmt.Sprint(GetCommandCounts()))
 }

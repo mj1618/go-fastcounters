@@ -72,8 +72,10 @@ func ProposeCommandToWAL(commandType string, command any) chan int {
 	return responseChannel
 }
 
+var entries = make([]WALEntry, 0, 256)
+
 func ReadProposedWALEntries() []WALEntry {
-	entries := make([]WALEntry, 0, 256)
+	entries = entries[:0]
 	timer := time.NewTimer(time.Microsecond * 100)
 	for {
 		select {
@@ -151,7 +153,7 @@ func PreProcessCommands() {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', tabwriter.AlignRight)
-	fmt.Fprintf(w, "Read WAL in: \t%s\t seconds\n", humanize.Comma(int64(time.Since(start).Seconds())))
+	fmt.Fprintf(w, "Read WAL in: \t%s\t seconds\n", humanize.CommafWithDigits((time.Since(start).Seconds()), 2))
 	fmt.Fprintf(w, "Read WAL at: \t%s\t msgs/sec\n", humanize.CommafWithDigits(float64(i)/time.Since(start).Seconds(), 0))
 	fmt.Fprintf(w, "Commands read from file: \t%s\t\n", humanize.Comma(i))
 	fmt.Fprintf(w, "Next sequence number: \t%s\t\n", humanize.Comma(sequenceNumber.Load()+1))
