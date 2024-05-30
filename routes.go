@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/mj1618/go-fastcounters/wal"
 )
 
 func StartHttp() {
@@ -21,8 +22,7 @@ func StartHttp() {
 }
 
 func StateHandler(c *fiber.Ctx) error {
-	fmt.Println("StateHandler", GetUint64(1234))
-	return c.SendString("Count: " + fmt.Sprint(countCommands) + "\n" + "State: " + fmt.Sprint(counters) + "\n")
+	return c.SendString("Count: " + fmt.Sprint(countCommands) + "\n" + "State: " + fmt.Sprint(GetCounterState()) + "\n")
 }
 
 func HttpCommandHandler[K MoveCommand | MoveAllCommand | IncrementCommand | DecrementCommand]() fiber.Handler {
@@ -34,8 +34,8 @@ func HttpCommandHandler[K MoveCommand | MoveAllCommand | IncrementCommand | Decr
 			return err
 		}
 
-		responseChannel := ProposeCommandToWAL(commandType, payload)
+		responseChannel := wal.ProposeCommandToWAL(commandType, payload)
 		result := <-responseChannel
-		return c.SendString("Result: " + fmt.Sprint(result))
+		return c.SendString("Result: " + fmt.Sprint(result) + "\n")
 	}
 }

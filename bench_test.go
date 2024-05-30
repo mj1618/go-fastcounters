@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/mj1618/go-fastcounters/wal"
 )
 
 func runCommands(n int) {
@@ -14,7 +16,7 @@ func runCommands(n int) {
 	for i := 0; i < n; i++ {
 		go (func() {
 			defer wg.Done()
-			responseChannel := ProposeCommandToWAL("MoveCommand", MoveCommand{FromAddress: 1, ToAddress: 2, Amount: 10})
+			responseChannel := wal.ProposeCommandToWAL("MoveCommand", MoveCommand{FromAddress: 1, ToAddress: 2, Amount: 10})
 			<-responseChannel
 
 			// fmt.Println("Done", x.Add(1))
@@ -26,7 +28,7 @@ func runCommands(n int) {
 }
 
 func TestBench(t *testing.T) {
-	InitWriteAheadLog(UpdateState)
+	wal.InitWAL("testwal", UpdateState)
 
 	var start = time.Now()
 	n := 100_000_000

@@ -1,4 +1,4 @@
-package main
+package wal
 
 import (
 	"bufio"
@@ -21,7 +21,7 @@ type WALEntry struct {
 	TraceId        int64
 }
 
-func GetCommand[K any](e WALEntry) K {
+func UnmarshalCommand[K any](e WALEntry) K {
 	var value K
 	msgpack.Unmarshal(e.CommandData, &value)
 	return value
@@ -37,9 +37,9 @@ var responseWriterMap = sync.Map{}
 var updateStateFn UpdateStateFunction = nil
 var triggerReadWALFileChannel = make(chan int, 256)
 
-type UpdateStateFunction func(WALEntry)
+type UpdateStateFunction func(entry WALEntry, replaying bool)
 
-func InitWriteAheadLog(fn UpdateStateFunction) {
+func InitWAL(name string, fn UpdateStateFunction) {
 	sequenceNumber.Store(0)
 	updateStateFn = fn
 	var err error
@@ -55,10 +55,18 @@ func InitWriteAheadLog(fn UpdateStateFunction) {
 		panic(err)
 	}
 
-	PreProcessCommands()
+	ReplayCommands()
+	// go PeriodicallyFsync()
 	go CommandLogReader()
 	go CommandLogWriter()
 }
+
+// func PeriodicallyFsync() {
+// 	for {
+// 		time.Sleep(1 * time.Second)
+// 		writeWALFile.Sync()
+// 	}
+// }
 
 func ProposeCommandToWAL(commandType string, command any) chan int {
 	data, err := msgpack.Marshal(command)
@@ -94,7 +102,7 @@ func CommandLogReader() {
 		entries := ReadCommandsFromWAL(n)
 		// fmt.Println("Read ", len(entries), " entries from WAL")
 		for _, entry := range entries {
-			updateStateFn(entry)
+			updateStateFn(entry, false)
 			responseChannel, ok := responseWriterMap.Load(entry.TraceId)
 			if ok {
 				// fmt.Println("Found response channel for ", entry.TraceId)
@@ -131,7 +139,7 @@ func CommandLogWriter() {
 	}
 }
 
-func PreProcessCommands() {
+func ReplayCommands() {
 	var i int64 = 0
 	start := time.Now()
 	for {
@@ -142,7 +150,7 @@ func PreProcessCommands() {
 		for _, command := range commands {
 			if command.SequenceNumber > sequenceNumber.Load() {
 				sequenceNumber.Store(command.SequenceNumber)
-				updateStateFn(command)
+				updateStateFn(command, true)
 			} else {
 				panic(fmt.Sprintf("Sequence number mismatch %v %d", command, sequenceNumber.Load()))
 			}

@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+
+	"github.com/mj1618/go-fastcounters/wal"
 )
 
 type MoveCommand struct {
@@ -29,30 +31,38 @@ var counters = map[uint64]uint64{}
 
 var countCommands = 0
 
-func UpdateState(entry WALEntry) {
+func UpdateState(entry wal.WALEntry, replaying bool) {
 
 	switch entry.CommandType {
 	case "MoveCommand":
 		countCommands++
-		cmd := GetCommand[MoveCommand](entry)
-		amount := min(counters[cmd.FromAddress], cmd.Amount)
-		counters[cmd.FromAddress] -= amount
-		counters[cmd.ToAddress] += amount
+		cmd := wal.UnmarshalCommand[MoveCommand](entry)
+		cmd.FromAddress = uint64(countCommands)
+		cmd.ToAddress = uint64(countCommands) << 32
+		counters[cmd.FromAddress] = 100
+		if counters[cmd.FromAddress] >= cmd.Amount {
+			counters[cmd.FromAddress] -= cmd.Amount
+			counters[cmd.ToAddress] += cmd.Amount
+			if !replaying {
+				PutUint64(cmd.FromAddress, counters[cmd.FromAddress])
+				PutUint64(cmd.ToAddress, counters[cmd.ToAddress])
+			}
+		}
 
 	case "MoveAllCommand":
 		countCommands++
-		cmd := GetCommand[MoveAllCommand](entry)
+		cmd := wal.UnmarshalCommand[MoveAllCommand](entry)
 		counters[cmd.ToAddress] += cmd.FromAddress
 		counters[cmd.FromAddress] = 0
 
 	case "IncrementCommand":
 		countCommands++
-		cmd := GetCommand[IncrementCommand](entry)
+		cmd := wal.UnmarshalCommand[IncrementCommand](entry)
 		counters[cmd.Address] += cmd.Amount
 
 	case "DecrementCommand":
 		countCommands++
-		cmd := GetCommand[DecrementCommand](entry)
+		cmd := wal.UnmarshalCommand[DecrementCommand](entry)
 		if cmd.Amount <= counters[cmd.Address] {
 			counters[cmd.Address] -= cmd.Amount
 		}
@@ -63,12 +73,14 @@ func UpdateState(entry WALEntry) {
 
 }
 
-func GetCommandCounts() map[string]int {
+func UnmarshalCommandCounts() map[string]int {
 	return map[string]int{
 		"Commands": countCommands,
 	}
 }
 
-func GetCounterState() map[uint64]uint64 {
-	return counters
+func GetCounterState() any {
+	// return counters
+	return GetUint64(uint64(countCommands - 1))
+	// return -1
 }

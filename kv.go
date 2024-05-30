@@ -5,36 +5,41 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/rosedblabs/rosedb/v2"
 )
 
-var db *leveldb.DB
+var db *rosedb.DB
 
-var kvMap = map[uint64]uint64{}
+var kvMapOldest = map[uint64]uint64{}
+var kvMapLatest = map[uint64]uint64{}
 var kvMapCount = 0
 
 func OpenDb() {
 	if db == nil {
 		var err error
-		db, err = leveldb.OpenFile("./leveldb", nil)
+		// db, err = leveldb.OpenFile("./leveldb", nil)
+		options := rosedb.DefaultOptions
+		options.DirPath = "/tmp/rosedb_basic"
+		db, err = rosedb.Open(options)
 		if err != nil {
 			panic(err)
 		}
+		start := time.Now()
+		db.Merge(true)
+		fmt.Println("Merge", time.Since(start))
 	}
 }
 
 func KVWriteBehind() {
 
 	OpenDb()
-	for i := 0; i < 100_000; i++ {
-		for key, value := range kvMap {
-			batch := new(leveldb.Batch)
-			batch.Put(Uint64ToByteArray(key), Uint64ToByteArray(value))
-			db.Write(batch, nil)
-
-		}
+	batch := db.NewBatch(rosedb.DefaultBatchOptions)
+	for key, value := range kvMapLatest {
+		batch.Put(Uint64ToByteArray(key), Uint64ToByteArray(value))
 	}
-	kvMap = map[uint64]uint64{}
+	_ = batch.Commit()
+
+	kvMapLatest = map[uint64]uint64{}
 
 }
 
@@ -45,22 +50,23 @@ var Uint64ToByteArray = func(i uint64) []byte {
 }
 
 func PutUint64(key uint64, value uint64) {
-	kvMap[key] = value
+	kvMapLatest[key] = value
 	kvMapCount++
-	if kvMapCount >= 100_000 {
-		start := time.Now()
-		KVWriteBehind()
-		fmt.Println("KVWriteBehind", time.Since(start))
-		kvMapCount = 0
-	}
+	db.Put(Uint64ToByteArray(key), Uint64ToByteArray(value))
+	// if kvMapCount >= 1_000_000 {
+	// 	start := time.Now()
+	// 	KVWriteBehind()
+	// 	fmt.Println("KVWriteBehind", time.Since(start))
+	// 	kvMapCount = 0
+	// }
 }
 
 func GetUint64(key uint64) uint64 {
-	if val, ok := kvMap[key]; ok {
+	if val, ok := kvMapLatest[key]; ok {
 		return val
 	}
 	OpenDb()
-	val, err := db.Get(Uint64ToByteArray(uint64(key)), nil)
+	val, err := db.Get(Uint64ToByteArray(uint64(key)))
 	if err != nil {
 		return 0
 	}
