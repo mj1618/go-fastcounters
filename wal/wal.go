@@ -41,6 +41,7 @@ type UpdateStateFunction func(entry WALEntry, replaying bool)
 
 func InitWAL(name string, fn UpdateStateFunction) {
 	sequenceNumber.Store(0)
+
 	updateStateFn = fn
 	var err error
 

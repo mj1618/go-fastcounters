@@ -4,10 +4,9 @@ pkill "go-fastcounters"
 rm wal.bin
 go run . &
 
-sleep 2
-./scripts/curl_increment
+sleep 5
 ./scripts/curl_state
-wrk http://127.0.0.1:8080/move --latency -t8 -c32 -d10s -s ./scripts/wrk.lua
+wrk http://127.0.0.1:8080/move --latency -t2 -c32 -d10s -s ./scripts/wrk.lua
 ./scripts/curl_state
 
 pkill "go-fastcounters"
