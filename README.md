@@ -6,6 +6,11 @@ This demonstrates a very simple Go HTTP server that can:
 - with each message being persisted to disk before being processed
 - all transactions processed serially and therefore atomically
 
+The chess example shows `70k TPS` at sub-millisecond latency.
+This is equivelant to about 5b chess games a month.
+Chess.com has around 1b games per month.
+So this is the kind of scale you can get if you keep the hot-path fast and move the slow stuff out to other services.
+
 ## Run the benchmark
 
 ```bash
