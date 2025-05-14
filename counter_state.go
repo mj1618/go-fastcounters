@@ -39,7 +39,6 @@ func UpdateState(entry wal.WALEntry, replaying bool) {
 		cmd := wal.UnmarshalCommand[MoveCommand](entry)
 		cmd.FromAddress = uint64(countCommands)
 		cmd.ToAddress = uint64(countCommands) << 32
-		counters[cmd.FromAddress] = 100
 		if counters[cmd.FromAddress] >= cmd.Amount {
 			counters[cmd.FromAddress] -= cmd.Amount
 			counters[cmd.ToAddress] += cmd.Amount
@@ -76,5 +75,5 @@ func UnmarshalCommandCounts() map[string]int {
 }
 
 func GetCounterState() any {
-	return counters
+	return counters[1234]
 }
