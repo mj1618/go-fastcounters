@@ -35,4 +35,4 @@ Similarly the state and routes files are available for the chess server as well.
 By bringing all messages back to a single thread, they can be totally ordered and persisted to disk in batches.
 Then they are sent in this order to the message handlers that update state (also on a single thread).
 
-Inspired by the (LMAX Architecture)[https://martinfowler.com/articles/lmax.html]
+Inspired by the [LMAX Architecture](https://martinfowler.com/articles/lmax.html)
