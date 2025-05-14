@@ -12,11 +12,11 @@ import (
 )
 
 func main() {
-	wal.InitWAL("", UpdateChessState)
+	wal.InitWAL("chess", UpdateChessState)
 	InitChessState()
 	ChessStartHttp()
 
-	// wal.InitWAL("", UpdateState)
+	// wal.InitWAL("counters", UpdateState)
 	// StartHttp()
 }
 

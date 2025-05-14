@@ -45,13 +45,13 @@ func InitWAL(name string, fn UpdateStateFunction) {
 	updateStateFn = fn
 	var err error
 
-	readWALFile, err = os.OpenFile("./wal.bin", os.O_CREATE|os.O_RDONLY, 0644)
+	readWALFile, err = os.OpenFile("./wal_"+name+".bin", os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
 	readWALDecoder = msgpack.NewDecoder(readWALFile)
 
-	writeWALFile, err = os.OpenFile("./wal.bin", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	writeWALFile, err = os.OpenFile("./wal_"+name+".bin", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
